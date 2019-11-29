@@ -34,30 +34,51 @@ const PAGE_SIZE = 2;
 //   }
 // ];
 
-exports.getPosts = (req, res, next) => {
+// exports.getPosts = (req, res, next) => {
+//   const currentPage = req.query.page || 1;
+//   let totalItems;
+//   Post.find()
+//     .countDocuments()
+//     .then(count => {
+//       totalItems = count;
+//       return Post.find()
+//         .skip(PAGE_SIZE * (currentPage - 1))
+//         .limit(PAGE_SIZE);
+//     })
+//     .then(posts => {
+//       res.status(200).json({
+//         message: "Fetched posts successfully.",
+//         posts: posts,
+//         totalItems: totalItems
+//       });
+//     })
+//     .catch(err => {
+//       if (!errsStatusCode) {
+//         err.statuseCode = 500;
+//       }
+//       next(err);
+//     });
+// };
+
+exports.getPosts = async (req, res, next) => {
   const currentPage = req.query.page || 1;
   let totalItems;
-  Post.find()
-    .countDocuments()
-    .then(count => {
-      totalItems = count;
-      return Post.find()
-        .skip(PAGE_SIZE * (currentPage - 1))
-        .limit(PAGE_SIZE);
-    })
-    .then(posts => {
-      res.status(200).json({
-        message: "Fetched posts successfully.",
-        posts: posts,
-        totalItems: totalItems
-      });
-    })
-    .catch(err => {
-      if (!errsStatusCode) {
-        err.statuseCode = 500;
-      }
-      next(err);
+  try {
+    totalItems = await Post.find().countDocuments();
+    const posts = await Post.find()
+      .skip(PAGE_SIZE * (currentPage - 1))
+      .limit(PAGE_SIZE);
+    res.status(200).json({
+      message: "Fetched posts successfully.",
+      posts: posts,
+      totalItems: totalItems
     });
+  } catch (err) {
+    if (!err) {
+      err.statuseCode = 500;
+    }
+    next(err);
+  }
 };
 
 exports.createPost = (req, res, next) => {
@@ -86,21 +107,19 @@ exports.createPost = (req, res, next) => {
   post
     .save()
     .then(result => {
-        return User.findById(req.userId);
-     
+      return User.findById(req.userId);
     })
-    .then(user=>{
-        creator = user;
-        user.posts.push(post);
-        return user.save();
-        
+    .then(user => {
+      creator = user;
+      user.posts.push(post);
+      return user.save();
     })
-    .then(result=>{
-        res.status(201).json({
-            message: "Post created successfully!",
-            post: post,
-            creator: { _id: creator._id, name: creator.name }
-          });
+    .then(result => {
+      res.status(201).json({
+        message: "Post created successfully!",
+        post: post,
+        creator: { _id: creator._id, name: creator.name }
+      });
     })
     .catch(err => {
       if (!err.statusCode) {
@@ -167,7 +186,7 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
-      if (post.creator.toString() !== req.userId){
+      if (post.creator.toString() !== req.userId) {
         const error = new Error("Not authorized!");
         error.statusCode = 403;
         throw error;
@@ -201,7 +220,7 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
-      if (post.creator.toString() !== req.userId){
+      if (post.creator.toString() !== req.userId) {
         const error = new Error("Not authorized!");
         error.statusCode = 403;
         throw error;
@@ -211,16 +230,14 @@ exports.deletePost = (req, res, next) => {
       return Post.findByIdAndRemove(postId);
     })
     .then(result => {
-        return User.findById(req.userId);
-    
+      return User.findById(req.userId);
     })
-    .then(user=>{
-        user.posts.pull(postId);
-        return user.save();
-       
+    .then(user => {
+      user.posts.pull(postId);
+      return user.save();
     })
-    .then(result=>{
-        res.status(200).json({ message: "Deleted post." });
+    .then(result => {
+      res.status(200).json({ message: "Deleted post." });
     })
     .catch(err => {
       if (!err.statusCode) {
